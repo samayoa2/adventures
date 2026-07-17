@@ -74,6 +74,19 @@
           "caption": ""
         }
       ]
+    },
+    {
+      "country": "United States",
+      "name": "Spokane, Washington",
+      "lat": 47.6571934,
+      "lon": -117.42351,
+      "photos": [
+        {
+          "src": "photos/1784327304163-20260705-115627.jpg",
+          "date": "2026-07-05",
+          "caption": ""
+        }
+      ]
     }
   ]
 }
