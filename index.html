@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Jon &amp; Nicki's Adventures</title>
+<link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css">
 <style>
   :root{
     --panel-bg: rgba(10,16,32,.82);
@@ -17,7 +18,7 @@
   /* ---------- animated flag background ---------- */
   #bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
   #bgTint{position:fixed;inset:0;z-index:1;pointer-events:none;
-    background:radial-gradient(ellipse at center, rgba(4,8,20,.55) 0%, rgba(4,8,20,.78) 100%);}
+    background:radial-gradient(ellipse at center, rgba(4,8,20,.5) 0%, rgba(4,8,20,.75) 100%);}
   /* ---------- layout ---------- */
   #app{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;}
   header{padding:10px 16px 6px;text-align:center;flex:0 0 auto;}
@@ -25,12 +26,15 @@
     color:var(--accent);text-shadow:0 2px 10px rgba(0,0,0,.8);font-weight:700;}
   header .sub{font-size:.8rem;opacity:.85;text-shadow:0 1px 4px #000;}
   #main{flex:1 1 auto;display:flex;min-height:0;position:relative;}
-  /* ---------- globe ---------- */
+  /* ---------- globe (Cesium) ---------- */
   #globeWrap{flex:1 1 auto;position:relative;min-width:0;}
-  #globeCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;}
-  #hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+  #cesiumContainer{position:absolute;inset:0;}
+  #cesiumContainer .cesium-viewer-bottom{display:none;}  /* hide default credits bar */
+  #credit{position:absolute;right:6px;bottom:2px;font-size:.6rem;opacity:.55;z-index:4;
+    pointer-events:none;}
+  #hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
     font-size:.72rem;opacity:.75;background:rgba(0,0,0,.45);padding:4px 12px;border-radius:20px;
-    pointer-events:none;white-space:nowrap;}
+    pointer-events:none;white-space:nowrap;z-index:4;}
   /* ---------- country sidebar ---------- */
   #sidebar{flex:0 0 250px;max-width:70vw;background:var(--panel-bg);backdrop-filter:blur(6px);
     border-left:1px solid var(--panel-border);overflow-y:auto;padding:10px 0 20px;
@@ -71,6 +75,9 @@
   #photoHead{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--panel-border);}
   #photoHead .t{font-weight:600;font-size:1.05rem;}
   #photoHead .c{font-size:.78rem;opacity:.7;}
+  #gmapsLink{font-size:.72rem;color:var(--accent);text-decoration:none;display:inline-block;
+    margin-top:2px;}
+  #gmapsLink:hover{text-decoration:underline;}
   #photoClose{margin-left:auto;background:none;border:none;color:var(--text);font-size:1.5rem;
     cursor:pointer;padding:2px 8px;line-height:1;}
   #photoList{overflow-y:auto;padding:12px 16px;-webkit-overflow-scrolling:touch;}
@@ -113,8 +120,9 @@
   </header>
   <div id="main">
     <div id="globeWrap">
-      <canvas id="globeCanvas"></canvas>
-      <div id="hint">drag to spin &nbsp;·&nbsp; pinch or scroll to zoom &nbsp;·&nbsp; tap a dot for photos</div>
+      <div id="cesiumContainer"></div>
+      <div id="credit">Imagery © Esri &amp; contributors</div>
+      <div id="hint">drag to spin &nbsp;·&nbsp; pinch or scroll to zoom to street level &nbsp;·&nbsp; tap a dot for photos</div>
       <button id="addBtn">＋ How photos get added</button>
       <div id="addInfo">
         <b>Adding photos</b><br>
@@ -135,7 +143,11 @@
 <div id="photoModal">
   <div id="photoCard">
     <div id="photoHead">
-      <div><div class="t" id="phTitle"></div><div class="c" id="phCountry"></div></div>
+      <div>
+        <div class="t" id="phTitle"></div>
+        <div class="c" id="phCountry"></div>
+        <a id="gmapsLink" href="#" target="_blank" rel="noopener">Open in Google Maps ↗</a>
+      </div>
       <button id="photoClose">×</button>
     </div>
     <div id="photoList"></div>
@@ -153,14 +165,13 @@
 
 <div id="loadNote" hidden>showing sample photos</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
 <script>
 'use strict';
 /* =====================================================================
-   Jon & Nicki's Adventures — single-file world photo map
-   Data comes from photos.json (same folder). If it can't be loaded
-   (e.g. opening the file directly), built-in sample data is shown.
+   Jon & Nicki's Adventures — world photo map with street-level zoom
+   Globe: CesiumJS + Esri World Imagery (sharp down to ~50 m).
+   Data: photos.json in the same folder; sample data if unavailable.
    ===================================================================== */
 
 /* ---------------- sample data (fallback) ---------------- */
@@ -173,27 +184,13 @@ const SAMPLE_DATA = {
     {country:"United States", name:"Chicago, Illinois", lat:41.8781, lon:-87.6298,
       photos:[
         {src:"https://picsum.photos/seed/chi1/900/600", date:"2024-09-02", caption:"The Bean"},
-        {src:"https://picsum.photos/seed/chi2/900/600", date:"2024-09-03", caption:"Navy Pier sunset"},
-        {src:"https://picsum.photos/seed/chi3/900/600", date:"2024-09-04", caption:"Deep dish night"}]},
-    {country:"United States", name:"Grand Canyon National Park, Arizona", lat:36.1069, lon:-112.1129,
-      photos:[
-        {src:"https://picsum.photos/seed/gc1/900/600", date:"2023-06-20", caption:"South Rim"}]},
+        {src:"https://picsum.photos/seed/chi2/900/600", date:"2024-09-03", caption:"Navy Pier sunset"}]},
     {country:"Mexico", name:"Cancún", lat:21.1619, lon:-86.8515,
       photos:[
-        {src:"https://picsum.photos/seed/can1/900/600", date:"2024-02-14", caption:"Valentine's on the beach"},
-        {src:"https://picsum.photos/seed/can2/900/600", date:"2024-02-16", caption:"Chichén Itzá day trip"}]},
+        {src:"https://picsum.photos/seed/can1/900/600", date:"2024-02-14", caption:"Valentine's on the beach"}]},
     {country:"France", name:"Paris", lat:48.8566, lon:2.3522,
       photos:[
-        {src:"https://picsum.photos/seed/par1/900/600", date:"2023-10-05", caption:"Eiffel Tower at dusk"},
-        {src:"https://picsum.photos/seed/par2/900/600", date:"2023-10-06", caption:"Louvre morning"}]},
-    {country:"Italy", name:"Rome", lat:41.9028, lon:12.4964,
-      photos:[
-        {src:"https://picsum.photos/seed/rom1/900/600", date:"2023-10-09", caption:"Colosseum"},
-        {src:"https://picsum.photos/seed/rom2/900/600", date:"2023-10-10", caption:"Trevi Fountain wish"}]},
-    {country:"Japan", name:"Tokyo", lat:35.6762, lon:139.6503,
-      photos:[
-        {src:"https://picsum.photos/seed/tok1/900/600", date:"2025-11-21", caption:"Shibuya crossing"},
-        {src:"https://picsum.photos/seed/tok2/900/600", date:"2025-11-23", caption:"Senso-ji temple"}]}
+        {src:"https://picsum.photos/seed/par1/900/600", date:"2023-10-05", caption:"Eiffel Tower at dusk"}]}
   ]
 };
 
@@ -205,7 +202,9 @@ function countryColor(name){
   return PALETTE[h % PALETTE.length];
 }
 
-/* ---------------- animated flag tapestry background ---------------- */
+/* ================= animated flag tapestry background =================
+   Plain WebGL: a tiled canvas of world flags, rippled + slowly scrolled
+   by a fragment shader so the visible flags keep changing. */
 const FLAG_CODES = ['us','mx','ca','fr','it','jp','br','gb','de','es','au','cn','in','kr','se','no',
   'gr','pt','ie','nl','ch','at','be','dk','fi','pl','cz','hu','tr','eg','za','ke','ma','ng','ar','cl',
   'pe','co','cr','pa','cu','jm','do','gt','nz','ph','th','vn','id','my','sg','il','sa','ae','qa','is',
@@ -221,12 +220,12 @@ function buildFlagTile(cb){
   let done=0; const total=COLS*ROWS;
   function place(img,i,ok){
     const r=Math.floor(i/COLS), col=i%COLS;
-    const offset=(r%2)?(FW+GAP)/2:0;                       // brick pattern
-    let x=col*(FW+GAP)+GAP/2-offset, y=r*(FH+GAP)+GAP/2;
+    const offset=(r%2)?(FW+GAP)/2:0;
+    const x=col*(FW+GAP)+GAP/2-offset, y=r*(FH+GAP)+GAP/2;
     const draw=(xx)=>{ if(ok){ctx.drawImage(img,xx,y,FW,FH);}
       else{ctx.fillStyle=PALETTE[i%PALETTE.length];ctx.fillRect(xx,y,FW,FH);}
       ctx.strokeStyle='rgba(0,0,0,.35)';ctx.strokeRect(xx+.5,y+.5,FW-1,FH-1);};
-    draw(x); if(offset) draw(x+COLS*(FW+GAP));             // wrap the shifted rows
+    draw(x); if(offset) draw(x+COLS*(FW+GAP));
     if(++done===total) cb(c);
   }
   for(let i=0;i<total;i++){
@@ -238,171 +237,152 @@ function buildFlagTile(cb){
   }
 }
 
-let bgRenderer=null, bgUniforms=null;
 function initBackground(){
   buildFlagTile(tile=>{
     const canvas=document.getElementById('bgCanvas');
-    try{ bgRenderer=new THREE.WebGLRenderer({canvas,antialias:false}); }
-    catch(e){ return; }
-    bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio,1.6));
-    const tex=new THREE.CanvasTexture(tile);
-    tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
-    bgUniforms={ uTex:{value:tex}, uTime:{value:0}, uAspect:{value:1} };
-    const mat=new THREE.ShaderMaterial({
-      uniforms:bgUniforms,
-      vertexShader:'varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.,1.);}',
-      fragmentShader:`
-        varying vec2 vUv; uniform sampler2D uTex; uniform float uTime; uniform float uAspect;
-        void main(){
-          vec2 uv=vUv; uv.x*=uAspect;                     // keep flags square-ish
-          uv*=1.35;                                       // tile scale
-          uv+=vec2(uTime*0.012, -uTime*0.006);            // slow scroll: border flags change
-          float w1=sin(uv.x*9.0+uv.y*7.0+uTime*1.1);
-          float w2=sin(uv.y*11.0-uTime*0.8);
-          float w3=sin((uv.x-uv.y)*6.0+uTime*0.6);
-          uv+=vec2(w1+w3, w2)*0.006;                      // ripple displacement
-          vec3 col=texture2D(uTex,uv).rgb;
-          float shade=0.78+0.22*sin(uv.x*9.0+uv.y*7.0+uTime*1.1+1.3); // fabric sheen
-          gl_FragColor=vec4(col*shade,1.0);
-        }`
-    });
-    const scene=new THREE.Scene();
-    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat));
-    const cam=new THREE.Camera();
-    function sizeBg(){
-      bgRenderer.setSize(window.innerWidth,window.innerHeight,false);
-      bgUniforms.uAspect.value=window.innerWidth/window.innerHeight;
+    const gl=canvas.getContext('webgl');
+    if(!gl) return;
+    const vsrc='attribute vec2 p;varying vec2 vUv;void main(){vUv=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
+    const fsrc=
+      'precision mediump float;varying vec2 vUv;uniform sampler2D uTex;'+
+      'uniform float uTime;uniform float uAspect;'+
+      'void main(){'+
+      '  vec2 uv=vUv; uv.x*=uAspect; uv*=1.35;'+
+      '  uv+=vec2(uTime*0.012,-uTime*0.006);'+                 // slow scroll
+      '  float w1=sin(uv.x*9.0+uv.y*7.0+uTime*1.1);'+
+      '  float w2=sin(uv.y*11.0-uTime*0.8);'+
+      '  float w3=sin((uv.x-uv.y)*6.0+uTime*0.6);'+
+      '  uv+=vec2(w1+w3,w2)*0.006;'+                           // ripple
+      '  vec3 col=texture2D(uTex,fract(uv)).rgb;'+
+      '  float shade=0.78+0.22*sin(uv.x*9.0+uv.y*7.0+uTime*1.1+1.3);'+
+      '  gl_FragColor=vec4(col*shade,1.0);}';
+    function sh(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);
+      gl.compileShader(s);return s;}
+    const prog=gl.createProgram();
+    gl.attachShader(prog,sh(gl.VERTEX_SHADER,vsrc));
+    gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fsrc));
+    gl.linkProgram(prog); gl.useProgram(prog);
+    const buf=gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 3,-1, -1,3]),gl.STATIC_DRAW);
+    const locP=gl.getAttribLocation(prog,'p');
+    gl.enableVertexAttribArray(locP);
+    gl.vertexAttribPointer(locP,2,gl.FLOAT,false,0,0);
+    const tex=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,tile);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    const uTime=gl.getUniformLocation(prog,'uTime');
+    const uAspect=gl.getUniformLocation(prog,'uAspect');
+    function size(){
+      const dpr=Math.min(window.devicePixelRatio||1,1.6);
+      canvas.width=innerWidth*dpr; canvas.height=innerHeight*dpr;
+      gl.viewport(0,0,canvas.width,canvas.height);
+      gl.uniform1f(uAspect,innerWidth/innerHeight);
     }
-    sizeBg(); window.addEventListener('resize',sizeBg);
-    bgRenderer.setAnimationLoop(()=>{ bgUniforms.uTime.value=performance.now()/1000;
-      bgRenderer.render(scene,cam); });
+    size(); addEventListener('resize',size);
+    (function loop(){
+      gl.uniform1f(uTime,performance.now()/1000);
+      gl.drawArrays(gl.TRIANGLES,0,3);
+      requestAnimationFrame(loop);
+    })();
   });
 }
 
-/* ---------------- globe ---------------- */
-const R=1;
-let renderer,scene,camera,controls,globeGroup,dotMeshes=[],raycaster,flyAnim=null;
-
-function latLonToVec3(lat,lon,r){
-  const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
-  return new THREE.Vector3(
-    -r*Math.sin(phi)*Math.cos(theta),
-     r*Math.cos(phi),
-     r*Math.sin(phi)*Math.sin(theta));
-}
+/* ================= Cesium globe (street-level zoom) ================= */
+let viewer=null, DATA=null, spin=true;
 
 function initGlobe(){
-  const canvas=document.getElementById('globeCanvas');
-  renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  scene=new THREE.Scene();
-  camera=new THREE.PerspectiveCamera(45,1,0.01,100);
-  camera.position.set(0,0.4,3.0);
+  // Esri World Imagery — no API key required, sharp to ~50 m
+  const imagery=Cesium.ImageryLayer.fromProviderAsync(
+    Cesium.ArcGisMapServerImageryProvider.fromUrl(
+      'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'));
 
-  scene.add(new THREE.AmbientLight(0xffffff,0.85));
-  const sun=new THREE.DirectionalLight(0xffffff,0.9); sun.position.set(5,3,5); scene.add(sun);
-
-  globeGroup=new THREE.Group(); scene.add(globeGroup);
-
-  // Earth — NASA Blue Marble imagery (the "Google-Earth-from-space" look)
-  const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
-  const earthMat=new THREE.MeshPhongMaterial({color:0x2a4a7f,shininess:8});
-  loader.load('https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
-    t=>{ earthMat.map=t; earthMat.color.set(0xffffff); earthMat.needsUpdate=true; });
-  globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(R,64,64),earthMat));
-
-  // soft atmosphere glow
-  const glow=new THREE.Mesh(new THREE.SphereGeometry(R*1.03,48,48),
-    new THREE.MeshBasicMaterial({color:0x5aa7ff,transparent:true,opacity:0.10,side:THREE.BackSide}));
-  globeGroup.add(glow);
-
-  // starfield
-  const starGeo=new THREE.BufferGeometry(); const pts=[];
-  for(let i=0;i<900;i++){
-    const u=Math.random()*2-1, th=Math.random()*Math.PI*2, s=Math.sqrt(1-u*u),
-          d=28+Math.random()*30;
-    pts.push(s*Math.cos(th)*d, u*d, s*Math.sin(th)*d);
-  }
-  starGeo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
-  scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xbfd0ff,size:0.06,sizeAttenuation:true})));
-
-  controls=new THREE.OrbitControls(camera,canvas);
-  controls.enableDamping=true; controls.dampingFactor=0.08;
-  controls.enablePan=false; controls.rotateSpeed=0.55;
-  controls.minDistance=1.25; controls.maxDistance=5;
-  controls.autoRotate=true; controls.autoRotateSpeed=0.5;
-  canvas.addEventListener('pointerdown',()=>{controls.autoRotate=false;},{once:true});
-
-  raycaster=new THREE.Raycaster();
-
-  // tap-vs-drag detection for dot picking
-  let downX=0,downY=0,downT=0;
-  canvas.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;downT=Date.now();});
-  canvas.addEventListener('pointerup',e=>{
-    if(Math.hypot(e.clientX-downX,e.clientY-downY)<9 && Date.now()-downT<600) pick(e);
+  viewer=new Cesium.Viewer('cesiumContainer',{
+    baseLayer: imagery,
+    baseLayerPicker:false, geocoder:false, homeButton:false, timeline:false,
+    animation:false, sceneModePicker:false, navigationHelpButton:false,
+    fullscreenButton:false, infoBox:false, selectionIndicator:false,
+    requestRenderMode:false,
   });
+  viewer.scene.globe.enableLighting=false;
+  viewer.scene.screenSpaceCameraController.minimumZoomDistance=60;      // ~street level
+  viewer.scene.screenSpaceCameraController.maximumZoomDistance=30000000;
+  viewer.cesiumWidget.creditContainer.style.display='none';
 
-  function sizeGlobe(){
-    const w=canvas.parentElement.clientWidth, h=canvas.parentElement.clientHeight;
-    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
-  }
-  sizeGlobe(); window.addEventListener('resize',sizeGlobe);
+  // start looking at the whole Earth
+  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(-97,30,22000000)});
 
-  renderer.setAnimationLoop(()=>{
-    if(flyAnim){
-      const t=Math.min(1,(performance.now()-flyAnim.t0)/flyAnim.dur);
-      const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;         // easeInOut
-      const dir=new THREE.Vector3().copy(flyAnim.from).normalize()
-        .lerp(flyAnim.toDir,e).normalize();
-      const dist=flyAnim.fromDist+(flyAnim.toDist-flyAnim.fromDist)*e;
-      camera.position.copy(dir.multiplyScalar(dist));
-      if(t>=1) flyAnim=null;
+  // gentle spin until the user touches the globe
+  viewer.clock.onTick.addEventListener(()=>{
+    if(spin) viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z,-0.0008);
+  });
+  const stopSpin=()=>{spin=false;};
+  viewer.canvas.addEventListener('pointerdown',stopSpin,{once:true});
+  viewer.canvas.addEventListener('touchstart',stopSpin,{once:true});
+  viewer.canvas.addEventListener('wheel',stopSpin,{once:true});
+
+  // tap a dot → open its photos
+  const handler=new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  handler.setInputAction(click=>{
+    const picked=viewer.scene.pick(click.position);
+    if(Cesium.defined(picked)&&picked.id&&picked.id._locIndex!==undefined){
+      const loc=DATA[picked.id._locIndex];
+      flyToLocation(loc);
+      openPhotos(loc);
     }
-    const s=THREE.MathUtils.clamp((camera.position.length()-1.2)/3,0.45,1);
-    dotMeshes.forEach(m=>m.scale.setScalar(s));           // dots shrink as you zoom in
-    controls.update();
-    renderer.render(scene,camera);
-  });
+  },Cesium.ScreenSpaceEventType.LEFT_CLICK);
 }
 
 function addDots(locations){
-  dotMeshes.forEach(m=>globeGroup.remove(m)); dotMeshes=[];
-  locations.forEach(loc=>{
-    const col=new THREE.Color(countryColor(loc.country));
-    const dot=new THREE.Mesh(new THREE.SphereGeometry(0.018,12,12),
-      new THREE.MeshBasicMaterial({color:col}));
-    dot.position.copy(latLonToVec3(loc.lat,loc.lon,R*1.005));
-    // bigger invisible halo makes finger-tapping easy
-    const halo=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,8),
-      new THREE.MeshBasicMaterial({visible:false}));
-    dot.add(halo);
-    dot.userData.loc=loc; halo.userData.loc=loc;
-    globeGroup.add(dot); dotMeshes.push(dot);
+  viewer.entities.removeAll();
+  locations.forEach((loc,i)=>{
+    const e=viewer.entities.add({
+      position:Cesium.Cartesian3.fromDegrees(loc.lon,loc.lat),
+      point:{
+        pixelSize:13,
+        color:Cesium.Color.fromCssColorString(countryColor(loc.country)),
+        outlineColor:Cesium.Color.WHITE.withAlpha(0.9),
+        outlineWidth:2,
+        disableDepthTestDistance:Number.POSITIVE_INFINITY,
+      },
+      label:{
+        text:loc.name,
+        font:'13px sans-serif',
+        fillColor:Cesium.Color.WHITE,
+        outlineColor:Cesium.Color.BLACK,
+        outlineWidth:3,
+        style:Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset:new Cesium.Cartesian2(0,-18),
+        distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,900000),
+        disableDepthTestDistance:Number.POSITIVE_INFINITY,
+      },
+    });
+    e._locIndex=i;
   });
 }
 
-function pick(e){
-  const rect=renderer.domElement.getBoundingClientRect();
-  const p=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,
-                            -((e.clientY-rect.top)/rect.height)*2+1);
-  raycaster.setFromCamera(p,camera);
-  const hits=raycaster.intersectObjects(dotMeshes,true);
-  for(const h of hits){
-    const loc=h.object.userData.loc;
-    if(loc){ flyTo(loc.lat,loc.lon,1.7); openPhotos(loc); return; }
-  }
+function flyToLocation(loc){
+  spin=false;
+  viewer.camera.flyTo({
+    destination:Cesium.Cartesian3.fromDegrees(loc.lon,loc.lat-0.012,1800),
+    orientation:{heading:0,pitch:Cesium.Math.toRadians(-42),roll:0},
+    duration:2.4,
+  });
 }
-
-function flyTo(lat,lon,dist,dur){
-  controls.autoRotate=false;
-  flyAnim={ from:camera.position.clone(), fromDist:camera.position.length(),
-            toDir:latLonToVec3(lat,lon,1).normalize(), toDist:dist,
-            t0:performance.now(), dur:dur||1300 };
+function flyToCountry(locs){
+  spin=false;
+  const lat=locs.reduce((s,l)=>s+l.lat,0)/locs.length;
+  const lon=locs.reduce((s,l)=>s+l.lon,0)/locs.length;
+  viewer.camera.flyTo({
+    destination:Cesium.Cartesian3.fromDegrees(lon,lat,2600000),
+    duration:1.8,
+  });
 }
 
 /* ---------------- data + country list ---------------- */
-let DATA=null;
-
 function normalizeData(d){
   const locs=(d&&Array.isArray(d.locations))?d.locations:[];
   return locs.filter(l=>l&&l.name&&isFinite(l.lat)&&isFinite(l.lon));
@@ -421,13 +401,7 @@ function buildCountryList(locations){
     head.addEventListener('click',()=>{
       const opening=!cEl.classList.contains('open');
       document.querySelectorAll('.country.open').forEach(x=>x.classList.remove('open'));
-      if(opening){
-        cEl.classList.add('open');
-        // zoom the globe to the middle of this country's spots
-        const lat=locs.reduce((s,l)=>s+l.lat,0)/locs.length;
-        const lon=locs.reduce((s,l)=>s+l.lon,0)/locs.length;
-        flyTo(lat,lon,2.1);
-      }
+      if(opening){ cEl.classList.add('open'); flyToCountry(locs); }
     });
     cEl.appendChild(head);
     const box=document.createElement('div'); box.className='locs';
@@ -435,7 +409,7 @@ function buildCountryList(locations){
       const li=document.createElement('div'); li.className='loc';
       li.innerHTML=l.name+'<span class="n">'+(l.photos?l.photos.length:0)+' photos</span>';
       li.addEventListener('click',()=>{
-        flyTo(l.lat,l.lon,1.6);
+        flyToLocation(l);
         openPhotos(l);
         if(window.innerWidth<=700) document.getElementById('sidebar').classList.remove('open');
       });
@@ -452,6 +426,8 @@ let lbPhotos=[], lbIndex=0;
 function openPhotos(loc){
   document.getElementById('phTitle').textContent=loc.name;
   document.getElementById('phCountry').textContent=loc.country||'';
+  document.getElementById('gmapsLink').href=
+    'https://www.google.com/maps/search/?api=1&query='+loc.lat+','+loc.lon;
   const list=document.getElementById('photoList'); list.innerHTML='';
   const photos=(loc.photos||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
   if(!photos.length){ list.innerHTML='<p style="opacity:.7">No photos here yet.</p>'; }
@@ -496,7 +472,6 @@ document.getElementById('lbClose').addEventListener('click',
 document.getElementById('lightbox').addEventListener('click',e=>{
   if(e.target.id==='lightbox') e.target.classList.remove('show');
 });
-// swipe left/right in lightbox
 let lbTouchX=null;
 document.getElementById('lightbox').addEventListener('touchstart',
   e=>{lbTouchX=e.touches[0].clientX;},{passive:true});
