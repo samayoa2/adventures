@@ -92,6 +92,19 @@
           "caption": ""
         }
       ]
+    },
+    {
+      "country": "Mexico",
+      "name": "Esperanza, Sonora",
+      "lat": 27.5857367,
+      "lon": -109.9272761,
+      "photos": [
+        {
+          "src": "photos/1784329180453-20240526-090924.jpg",
+          "date": "2024-05-26",
+          "caption": ""
+        }
+      ]
     }
   ]
 }
