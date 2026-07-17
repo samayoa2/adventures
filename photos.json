@@ -1,0 +1,42 @@
+{
+  "locations": [
+    {
+      "country": "United States",
+      "name": "Oklahoma City, Oklahoma",
+      "lat": 35.4676,
+      "lon": -97.5164,
+      "photos": [
+        { "src": "https://picsum.photos/seed/okc1/900/600", "date": "2025-04-12", "caption": "Scissortail Park" },
+        { "src": "https://picsum.photos/seed/okc2/900/600", "date": "2025-04-13", "caption": "Bricktown canal walk" }
+      ]
+    },
+    {
+      "country": "United States",
+      "name": "Chicago, Illinois",
+      "lat": 41.8781,
+      "lon": -87.6298,
+      "photos": [
+        { "src": "https://picsum.photos/seed/chi1/900/600", "date": "2024-09-02", "caption": "The Bean" },
+        { "src": "https://picsum.photos/seed/chi2/900/600", "date": "2024-09-03", "caption": "Navy Pier sunset" }
+      ]
+    },
+    {
+      "country": "Mexico",
+      "name": "Cancún",
+      "lat": 21.1619,
+      "lon": -86.8515,
+      "photos": [
+        { "src": "https://picsum.photos/seed/can1/900/600", "date": "2024-02-14", "caption": "Valentine's on the beach" }
+      ]
+    },
+    {
+      "country": "France",
+      "name": "Paris",
+      "lat": 48.8566,
+      "lon": 2.3522,
+      "photos": [
+        { "src": "https://picsum.photos/seed/par1/900/600", "date": "2023-10-05", "caption": "Eiffel Tower at dusk" }
+      ]
+    }
+  ]
+}

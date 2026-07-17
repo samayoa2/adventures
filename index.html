@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Jon &amp; Nicki's Adventures</title>
+<style>
+  :root{
+    --panel-bg: rgba(10,16,32,.82);
+    --panel-border: rgba(255,255,255,.14);
+    --accent: #ffd166;
+    --text: #f4f6fb;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#060a18;color:var(--text);
+    font-family:'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif;}
+  /* ---------- animated flag background ---------- */
+  #bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
+  #bgTint{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at center, rgba(4,8,20,.55) 0%, rgba(4,8,20,.78) 100%);}
+  /* ---------- layout ---------- */
+  #app{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;}
+  header{padding:10px 16px 6px;text-align:center;flex:0 0 auto;}
+  header h1{margin:0;font-size:clamp(1.35rem,4.5vw,2.3rem);letter-spacing:.5px;
+    color:var(--accent);text-shadow:0 2px 10px rgba(0,0,0,.8);font-weight:700;}
+  header .sub{font-size:.8rem;opacity:.85;text-shadow:0 1px 4px #000;}
+  #main{flex:1 1 auto;display:flex;min-height:0;position:relative;}
+  /* ---------- globe ---------- */
+  #globeWrap{flex:1 1 auto;position:relative;min-width:0;}
+  #globeCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;}
+  #hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+    font-size:.72rem;opacity:.75;background:rgba(0,0,0,.45);padding:4px 12px;border-radius:20px;
+    pointer-events:none;white-space:nowrap;}
+  /* ---------- country sidebar ---------- */
+  #sidebar{flex:0 0 250px;max-width:70vw;background:var(--panel-bg);backdrop-filter:blur(6px);
+    border-left:1px solid var(--panel-border);overflow-y:auto;padding:10px 0 20px;
+    transition:transform .25s ease;z-index:5;}
+  #sidebar h2{font-size:.95rem;margin:4px 14px 8px;color:var(--accent);text-transform:uppercase;
+    letter-spacing:1px;}
+  .country{border-bottom:1px solid rgba(255,255,255,.07);}
+  .country-head{display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;
+    user-select:none;font-size:.95rem;}
+  .country-head:hover{background:rgba(255,255,255,.07);}
+  .dot-swatch{width:12px;height:12px;border-radius:50%;flex:0 0 auto;
+    box-shadow:0 0 6px currentColor;}
+  .country-head .count{margin-left:auto;font-size:.75rem;opacity:.65;}
+  .country-head .chev{font-size:.7rem;opacity:.7;transition:transform .2s;}
+  .country.open .chev{transform:rotate(90deg);}
+  .locs{display:none;padding:0 0 6px;}
+  .country.open .locs{display:block;}
+  .loc{padding:7px 14px 7px 35px;font-size:.86rem;cursor:pointer;opacity:.92;}
+  .loc:hover{background:rgba(255,255,255,.08);}
+  .loc .n{opacity:.6;font-size:.72rem;margin-left:5px;}
+  /* mobile drawer */
+  #sideToggle{display:none;position:absolute;top:8px;right:8px;z-index:6;
+    background:var(--panel-bg);border:1px solid var(--panel-border);color:var(--text);
+    border-radius:8px;padding:8px 12px;font-size:.85rem;cursor:pointer;}
+  @media (max-width:700px){
+    #sidebar{position:absolute;top:0;right:0;bottom:0;transform:translateX(105%);
+      box-shadow:-8px 0 24px rgba(0,0,0,.5);}
+    #sidebar.open{transform:translateX(0);}
+    #sideToggle{display:block;}
+  }
+  /* ---------- photo popup ---------- */
+  #photoModal{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+    background:rgba(3,6,14,.75);}
+  #photoModal.show{display:flex;}
+  #photoCard{background:var(--panel-bg);backdrop-filter:blur(8px);border:1px solid var(--panel-border);
+    border-radius:14px;width:min(560px,94vw);max-height:86vh;display:flex;flex-direction:column;
+    overflow:hidden;box-shadow:0 12px 50px rgba(0,0,0,.7);}
+  #photoHead{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--panel-border);}
+  #photoHead .t{font-weight:600;font-size:1.05rem;}
+  #photoHead .c{font-size:.78rem;opacity:.7;}
+  #photoClose{margin-left:auto;background:none;border:none;color:var(--text);font-size:1.5rem;
+    cursor:pointer;padding:2px 8px;line-height:1;}
+  #photoList{overflow-y:auto;padding:12px 16px;-webkit-overflow-scrolling:touch;}
+  .ph{margin-bottom:18px;}
+  .ph img{width:100%;border-radius:10px;display:block;cursor:pointer;background:#111;
+    min-height:60px;}
+  .ph .meta{font-size:.78rem;opacity:.8;margin-top:5px;display:flex;gap:10px;}
+  .ph .meta .d{color:var(--accent);}
+  /* ---------- lightbox ---------- */
+  #lightbox{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.93);touch-action:pan-y;}
+  #lightbox.show{display:flex;}
+  #lightbox img{max-width:96vw;max-height:88vh;border-radius:6px;}
+  #lbCap{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:.85rem;opacity:.9;}
+  .lbBtn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);
+    border:none;color:#fff;font-size:1.6rem;padding:14px 16px;cursor:pointer;border-radius:10px;}
+  #lbPrev{left:10px;} #lbNext{right:10px;}
+  #lbClose{position:absolute;top:12px;right:14px;background:none;border:none;color:#fff;
+    font-size:2rem;cursor:pointer;}
+  /* ---------- add-photos info ---------- */
+  #addBtn{position:absolute;bottom:10px;left:10px;z-index:5;background:var(--panel-bg);
+    border:1px solid var(--panel-border);color:var(--text);border-radius:20px;
+    padding:7px 14px;font-size:.8rem;cursor:pointer;}
+  #addInfo{display:none;position:absolute;bottom:52px;left:10px;z-index:6;width:min(320px,88vw);
+    background:var(--panel-bg);backdrop-filter:blur(8px);border:1px solid var(--panel-border);
+    border-radius:12px;padding:14px 16px;font-size:.83rem;line-height:1.5;}
+  #addInfo.show{display:block;}
+  #addInfo b{color:var(--accent);}
+  #loadNote{position:fixed;bottom:8px;right:12px;z-index:5;font-size:.68rem;opacity:.55;}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div id="bgTint"></div>
+
+<div id="app">
+  <header>
+    <h1>Jon &amp; Nicki's Adventures</h1>
+    <div class="sub">Tap a dot or pick a country to see our photos</div>
+  </header>
+  <div id="main">
+    <div id="globeWrap">
+      <canvas id="globeCanvas"></canvas>
+      <div id="hint">drag to spin &nbsp;·&nbsp; pinch or scroll to zoom &nbsp;·&nbsp; tap a dot for photos</div>
+      <button id="addBtn">＋ How photos get added</button>
+      <div id="addInfo">
+        <b>Adding photos</b><br>
+        Jon &amp; Nicki send photos to the site's private email address from their phones
+        (share a photo → Mail → send). The site reads the photo's GPS tag and drops a dot
+        on the map automatically. Only their addresses are allowed to add photos.
+      </div>
+      <button id="sideToggle">🌍 Countries</button>
+    </div>
+    <nav id="sidebar">
+      <h2>Countries we've visited</h2>
+      <div id="countryList"></div>
+    </nav>
+  </div>
+</div>
+
+<!-- photo popup -->
+<div id="photoModal">
+  <div id="photoCard">
+    <div id="photoHead">
+      <div><div class="t" id="phTitle"></div><div class="c" id="phCountry"></div></div>
+      <button id="photoClose">×</button>
+    </div>
+    <div id="photoList"></div>
+  </div>
+</div>
+
+<!-- lightbox -->
+<div id="lightbox">
+  <button id="lbClose">×</button>
+  <button class="lbBtn" id="lbPrev">‹</button>
+  <img id="lbImg" alt="">
+  <button class="lbBtn" id="lbNext">›</button>
+  <div id="lbCap"></div>
+</div>
+
+<div id="loadNote" hidden>showing sample photos</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   Jon & Nicki's Adventures — single-file world photo map
+   Data comes from photos.json (same folder). If it can't be loaded
+   (e.g. opening the file directly), built-in sample data is shown.
+   ===================================================================== */
+
+/* ---------------- sample data (fallback) ---------------- */
+const SAMPLE_DATA = {
+  locations: [
+    {country:"United States", name:"Oklahoma City, Oklahoma", lat:35.4676, lon:-97.5164,
+      photos:[
+        {src:"https://picsum.photos/seed/okc1/900/600", date:"2025-04-12", caption:"Scissortail Park"},
+        {src:"https://picsum.photos/seed/okc2/900/600", date:"2025-04-13", caption:"Bricktown canal walk"}]},
+    {country:"United States", name:"Chicago, Illinois", lat:41.8781, lon:-87.6298,
+      photos:[
+        {src:"https://picsum.photos/seed/chi1/900/600", date:"2024-09-02", caption:"The Bean"},
+        {src:"https://picsum.photos/seed/chi2/900/600", date:"2024-09-03", caption:"Navy Pier sunset"},
+        {src:"https://picsum.photos/seed/chi3/900/600", date:"2024-09-04", caption:"Deep dish night"}]},
+    {country:"United States", name:"Grand Canyon National Park, Arizona", lat:36.1069, lon:-112.1129,
+      photos:[
+        {src:"https://picsum.photos/seed/gc1/900/600", date:"2023-06-20", caption:"South Rim"}]},
+    {country:"Mexico", name:"Cancún", lat:21.1619, lon:-86.8515,
+      photos:[
+        {src:"https://picsum.photos/seed/can1/900/600", date:"2024-02-14", caption:"Valentine's on the beach"},
+        {src:"https://picsum.photos/seed/can2/900/600", date:"2024-02-16", caption:"Chichén Itzá day trip"}]},
+    {country:"France", name:"Paris", lat:48.8566, lon:2.3522,
+      photos:[
+        {src:"https://picsum.photos/seed/par1/900/600", date:"2023-10-05", caption:"Eiffel Tower at dusk"},
+        {src:"https://picsum.photos/seed/par2/900/600", date:"2023-10-06", caption:"Louvre morning"}]},
+    {country:"Italy", name:"Rome", lat:41.9028, lon:12.4964,
+      photos:[
+        {src:"https://picsum.photos/seed/rom1/900/600", date:"2023-10-09", caption:"Colosseum"},
+        {src:"https://picsum.photos/seed/rom2/900/600", date:"2023-10-10", caption:"Trevi Fountain wish"}]},
+    {country:"Japan", name:"Tokyo", lat:35.6762, lon:139.6503,
+      photos:[
+        {src:"https://picsum.photos/seed/tok1/900/600", date:"2025-11-21", caption:"Shibuya crossing"},
+        {src:"https://picsum.photos/seed/tok2/900/600", date:"2025-11-23", caption:"Senso-ji temple"}]}
+  ]
+};
+
+/* ---------------- color per country ---------------- */
+const PALETTE = ['#ff5c7a','#ffd166','#06d6a0','#4cc9f0','#f77f00','#c77dff',
+                 '#90e0ef','#f4a261','#80ed99','#ff8fab','#a3cef1','#e9ff70'];
+function countryColor(name){
+  let h=0; for(let i=0;i<name.length;i++){h=(h*31+name.charCodeAt(i))>>>0;}
+  return PALETTE[h % PALETTE.length];
+}
+
+/* ---------------- animated flag tapestry background ---------------- */
+const FLAG_CODES = ['us','mx','ca','fr','it','jp','br','gb','de','es','au','cn','in','kr','se','no',
+  'gr','pt','ie','nl','ch','at','be','dk','fi','pl','cz','hu','tr','eg','za','ke','ma','ng','ar','cl',
+  'pe','co','cr','pa','cu','jm','do','gt','nz','ph','th','vn','id','my','sg','il','sa','ae','qa','is',
+  'hr','ro','bg','ua','ee','lv','lt','sk','si','lu','mt','cy','mc','tw','hk','np','lk','bd','pk','kz',
+  'mn','kh','la','mm','bo','ec','uy','py','ve','hn','ni','sv','bz','bs','bb','tt','fj','ws','to','pg'];
+
+function buildFlagTile(cb){
+  const FW=90, FH=60, GAP=10, COLS=10, ROWS=10;
+  const c=document.createElement('canvas');
+  c.width=COLS*(FW+GAP); c.height=ROWS*(FH+GAP);
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#0a1226'; ctx.fillRect(0,0,c.width,c.height);
+  let done=0; const total=COLS*ROWS;
+  function place(img,i,ok){
+    const r=Math.floor(i/COLS), col=i%COLS;
+    const offset=(r%2)?(FW+GAP)/2:0;                       // brick pattern
+    let x=col*(FW+GAP)+GAP/2-offset, y=r*(FH+GAP)+GAP/2;
+    const draw=(xx)=>{ if(ok){ctx.drawImage(img,xx,y,FW,FH);}
+      else{ctx.fillStyle=PALETTE[i%PALETTE.length];ctx.fillRect(xx,y,FW,FH);}
+      ctx.strokeStyle='rgba(0,0,0,.35)';ctx.strokeRect(xx+.5,y+.5,FW-1,FH-1);};
+    draw(x); if(offset) draw(x+COLS*(FW+GAP));             // wrap the shifted rows
+    if(++done===total) cb(c);
+  }
+  for(let i=0;i<total;i++){
+    const code=FLAG_CODES[i%FLAG_CODES.length];
+    const img=new Image(); img.crossOrigin='anonymous';
+    img.onload=()=>place(img,i,true);
+    img.onerror=()=>place(null,i,false);
+    img.src='https://flagcdn.com/w160/'+code+'.png';
+  }
+}
+
+let bgRenderer=null, bgUniforms=null;
+function initBackground(){
+  buildFlagTile(tile=>{
+    const canvas=document.getElementById('bgCanvas');
+    try{ bgRenderer=new THREE.WebGLRenderer({canvas,antialias:false}); }
+    catch(e){ return; }
+    bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio,1.6));
+    const tex=new THREE.CanvasTexture(tile);
+    tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+    bgUniforms={ uTex:{value:tex}, uTime:{value:0}, uAspect:{value:1} };
+    const mat=new THREE.ShaderMaterial({
+      uniforms:bgUniforms,
+      vertexShader:'varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.,1.);}',
+      fragmentShader:`
+        varying vec2 vUv; uniform sampler2D uTex; uniform float uTime; uniform float uAspect;
+        void main(){
+          vec2 uv=vUv; uv.x*=uAspect;                     // keep flags square-ish
+          uv*=1.35;                                       // tile scale
+          uv+=vec2(uTime*0.012, -uTime*0.006);            // slow scroll: border flags change
+          float w1=sin(uv.x*9.0+uv.y*7.0+uTime*1.1);
+          float w2=sin(uv.y*11.0-uTime*0.8);
+          float w3=sin((uv.x-uv.y)*6.0+uTime*0.6);
+          uv+=vec2(w1+w3, w2)*0.006;                      // ripple displacement
+          vec3 col=texture2D(uTex,uv).rgb;
+          float shade=0.78+0.22*sin(uv.x*9.0+uv.y*7.0+uTime*1.1+1.3); // fabric sheen
+          gl_FragColor=vec4(col*shade,1.0);
+        }`
+    });
+    const scene=new THREE.Scene();
+    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat));
+    const cam=new THREE.Camera();
+    function sizeBg(){
+      bgRenderer.setSize(window.innerWidth,window.innerHeight,false);
+      bgUniforms.uAspect.value=window.innerWidth/window.innerHeight;
+    }
+    sizeBg(); window.addEventListener('resize',sizeBg);
+    bgRenderer.setAnimationLoop(()=>{ bgUniforms.uTime.value=performance.now()/1000;
+      bgRenderer.render(scene,cam); });
+  });
+}
+
+/* ---------------- globe ---------------- */
+const R=1;
+let renderer,scene,camera,controls,globeGroup,dotMeshes=[],raycaster,flyAnim=null;
+
+function latLonToVec3(lat,lon,r){
+  const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
+  return new THREE.Vector3(
+    -r*Math.sin(phi)*Math.cos(theta),
+     r*Math.cos(phi),
+     r*Math.sin(phi)*Math.sin(theta));
+}
+
+function initGlobe(){
+  const canvas=document.getElementById('globeCanvas');
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(45,1,0.01,100);
+  camera.position.set(0,0.4,3.0);
+
+  scene.add(new THREE.AmbientLight(0xffffff,0.85));
+  const sun=new THREE.DirectionalLight(0xffffff,0.9); sun.position.set(5,3,5); scene.add(sun);
+
+  globeGroup=new THREE.Group(); scene.add(globeGroup);
+
+  // Earth — NASA Blue Marble imagery (the "Google-Earth-from-space" look)
+  const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
+  const earthMat=new THREE.MeshPhongMaterial({color:0x2a4a7f,shininess:8});
+  loader.load('https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
+    t=>{ earthMat.map=t; earthMat.color.set(0xffffff); earthMat.needsUpdate=true; });
+  globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(R,64,64),earthMat));
+
+  // soft atmosphere glow
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(R*1.03,48,48),
+    new THREE.MeshBasicMaterial({color:0x5aa7ff,transparent:true,opacity:0.10,side:THREE.BackSide}));
+  globeGroup.add(glow);
+
+  // starfield
+  const starGeo=new THREE.BufferGeometry(); const pts=[];
+  for(let i=0;i<900;i++){
+    const u=Math.random()*2-1, th=Math.random()*Math.PI*2, s=Math.sqrt(1-u*u),
+          d=28+Math.random()*30;
+    pts.push(s*Math.cos(th)*d, u*d, s*Math.sin(th)*d);
+  }
+  starGeo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+  scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xbfd0ff,size:0.06,sizeAttenuation:true})));
+
+  controls=new THREE.OrbitControls(camera,canvas);
+  controls.enableDamping=true; controls.dampingFactor=0.08;
+  controls.enablePan=false; controls.rotateSpeed=0.55;
+  controls.minDistance=1.25; controls.maxDistance=5;
+  controls.autoRotate=true; controls.autoRotateSpeed=0.5;
+  canvas.addEventListener('pointerdown',()=>{controls.autoRotate=false;},{once:true});
+
+  raycaster=new THREE.Raycaster();
+
+  // tap-vs-drag detection for dot picking
+  let downX=0,downY=0,downT=0;
+  canvas.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;downT=Date.now();});
+  canvas.addEventListener('pointerup',e=>{
+    if(Math.hypot(e.clientX-downX,e.clientY-downY)<9 && Date.now()-downT<600) pick(e);
+  });
+
+  function sizeGlobe(){
+    const w=canvas.parentElement.clientWidth, h=canvas.parentElement.clientHeight;
+    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+  sizeGlobe(); window.addEventListener('resize',sizeGlobe);
+
+  renderer.setAnimationLoop(()=>{
+    if(flyAnim){
+      const t=Math.min(1,(performance.now()-flyAnim.t0)/flyAnim.dur);
+      const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;         // easeInOut
+      const dir=new THREE.Vector3().copy(flyAnim.from).normalize()
+        .lerp(flyAnim.toDir,e).normalize();
+      const dist=flyAnim.fromDist+(flyAnim.toDist-flyAnim.fromDist)*e;
+      camera.position.copy(dir.multiplyScalar(dist));
+      if(t>=1) flyAnim=null;
+    }
+    const s=THREE.MathUtils.clamp((camera.position.length()-1.2)/3,0.45,1);
+    dotMeshes.forEach(m=>m.scale.setScalar(s));           // dots shrink as you zoom in
+    controls.update();
+    renderer.render(scene,camera);
+  });
+}
+
+function addDots(locations){
+  dotMeshes.forEach(m=>globeGroup.remove(m)); dotMeshes=[];
+  locations.forEach(loc=>{
+    const col=new THREE.Color(countryColor(loc.country));
+    const dot=new THREE.Mesh(new THREE.SphereGeometry(0.018,12,12),
+      new THREE.MeshBasicMaterial({color:col}));
+    dot.position.copy(latLonToVec3(loc.lat,loc.lon,R*1.005));
+    // bigger invisible halo makes finger-tapping easy
+    const halo=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,8),
+      new THREE.MeshBasicMaterial({visible:false}));
+    dot.add(halo);
+    dot.userData.loc=loc; halo.userData.loc=loc;
+    globeGroup.add(dot); dotMeshes.push(dot);
+  });
+}
+
+function pick(e){
+  const rect=renderer.domElement.getBoundingClientRect();
+  const p=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,
+                            -((e.clientY-rect.top)/rect.height)*2+1);
+  raycaster.setFromCamera(p,camera);
+  const hits=raycaster.intersectObjects(dotMeshes,true);
+  for(const h of hits){
+    const loc=h.object.userData.loc;
+    if(loc){ flyTo(loc.lat,loc.lon,1.7); openPhotos(loc); return; }
+  }
+}
+
+function flyTo(lat,lon,dist,dur){
+  controls.autoRotate=false;
+  flyAnim={ from:camera.position.clone(), fromDist:camera.position.length(),
+            toDir:latLonToVec3(lat,lon,1).normalize(), toDist:dist,
+            t0:performance.now(), dur:dur||1300 };
+}
+
+/* ---------------- data + country list ---------------- */
+let DATA=null;
+
+function normalizeData(d){
+  const locs=(d&&Array.isArray(d.locations))?d.locations:[];
+  return locs.filter(l=>l&&l.name&&isFinite(l.lat)&&isFinite(l.lon));
+}
+
+function buildCountryList(locations){
+  const byCountry={};
+  locations.forEach(l=>{ (byCountry[l.country||'Elsewhere']=byCountry[l.country||'Elsewhere']||[]).push(l); });
+  const listEl=document.getElementById('countryList'); listEl.innerHTML='';
+  Object.keys(byCountry).sort().forEach(cn=>{
+    const locs=byCountry[cn];
+    const cEl=document.createElement('div'); cEl.className='country';
+    const head=document.createElement('div'); head.className='country-head';
+    head.innerHTML='<span class="dot-swatch" style="color:'+countryColor(cn)+';background:'+countryColor(cn)+'"></span>'+
+      '<span>'+cn+'</span><span class="count">'+locs.length+'</span><span class="chev">▶</span>';
+    head.addEventListener('click',()=>{
+      const opening=!cEl.classList.contains('open');
+      document.querySelectorAll('.country.open').forEach(x=>x.classList.remove('open'));
+      if(opening){
+        cEl.classList.add('open');
+        // zoom the globe to the middle of this country's spots
+        const lat=locs.reduce((s,l)=>s+l.lat,0)/locs.length;
+        const lon=locs.reduce((s,l)=>s+l.lon,0)/locs.length;
+        flyTo(lat,lon,2.1);
+      }
+    });
+    cEl.appendChild(head);
+    const box=document.createElement('div'); box.className='locs';
+    locs.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(l=>{
+      const li=document.createElement('div'); li.className='loc';
+      li.innerHTML=l.name+'<span class="n">'+(l.photos?l.photos.length:0)+' photos</span>';
+      li.addEventListener('click',()=>{
+        flyTo(l.lat,l.lon,1.6);
+        openPhotos(l);
+        if(window.innerWidth<=700) document.getElementById('sidebar').classList.remove('open');
+      });
+      box.appendChild(li);
+    });
+    cEl.appendChild(box);
+    listEl.appendChild(cEl);
+  });
+}
+
+/* ---------------- photo popup + lightbox ---------------- */
+let lbPhotos=[], lbIndex=0;
+
+function openPhotos(loc){
+  document.getElementById('phTitle').textContent=loc.name;
+  document.getElementById('phCountry').textContent=loc.country||'';
+  const list=document.getElementById('photoList'); list.innerHTML='';
+  const photos=(loc.photos||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  if(!photos.length){ list.innerHTML='<p style="opacity:.7">No photos here yet.</p>'; }
+  photos.forEach((p,i)=>{
+    const d=document.createElement('div'); d.className='ph';
+    const img=document.createElement('img');
+    img.loading='lazy'; img.src=p.src; img.alt=p.caption||loc.name;
+    img.addEventListener('click',()=>openLightbox(photos,i));
+    d.appendChild(img);
+    const meta=document.createElement('div'); meta.className='meta';
+    meta.innerHTML='<span class="d">'+formatDate(p.date)+'</span><span>'+(p.caption||'')+'</span>';
+    d.appendChild(meta);
+    list.appendChild(d);
+  });
+  document.getElementById('photoModal').classList.add('show');
+}
+function formatDate(s){
+  if(!s) return '';
+  const d=new Date(s+(s.length===10?'T12:00:00':''));
+  return isNaN(d)?s:d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
+}
+document.getElementById('photoClose').addEventListener('click',
+  ()=>document.getElementById('photoModal').classList.remove('show'));
+document.getElementById('photoModal').addEventListener('click',e=>{
+  if(e.target.id==='photoModal') e.target.classList.remove('show');
+});
+
+function openLightbox(photos,i){
+  lbPhotos=photos; lbIndex=i; showLb();
+  document.getElementById('lightbox').classList.add('show');
+}
+function showLb(){
+  const p=lbPhotos[lbIndex];
+  document.getElementById('lbImg').src=p.src;
+  document.getElementById('lbCap').textContent=(formatDate(p.date)+'  '+(p.caption||'')).trim();
+}
+function lbMove(dir){ lbIndex=(lbIndex+dir+lbPhotos.length)%lbPhotos.length; showLb(); }
+document.getElementById('lbPrev').addEventListener('click',()=>lbMove(-1));
+document.getElementById('lbNext').addEventListener('click',()=>lbMove(1));
+document.getElementById('lbClose').addEventListener('click',
+  ()=>document.getElementById('lightbox').classList.remove('show'));
+document.getElementById('lightbox').addEventListener('click',e=>{
+  if(e.target.id==='lightbox') e.target.classList.remove('show');
+});
+// swipe left/right in lightbox
+let lbTouchX=null;
+document.getElementById('lightbox').addEventListener('touchstart',
+  e=>{lbTouchX=e.touches[0].clientX;},{passive:true});
+document.getElementById('lightbox').addEventListener('touchend',e=>{
+  if(lbTouchX===null) return;
+  const dx=e.changedTouches[0].clientX-lbTouchX;
+  if(Math.abs(dx)>45) lbMove(dx<0?1:-1);
+  lbTouchX=null;
+},{passive:true});
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('lightbox').classList.contains('show')){
+    if(e.key==='ArrowLeft')lbMove(-1); if(e.key==='ArrowRight')lbMove(1);
+    if(e.key==='Escape')document.getElementById('lightbox').classList.remove('show');
+  } else if(e.key==='Escape'){ document.getElementById('photoModal').classList.remove('show'); }
+});
+
+/* ---------------- small UI wiring ---------------- */
+document.getElementById('sideToggle').addEventListener('click',
+  ()=>document.getElementById('sidebar').classList.toggle('open'));
+document.getElementById('addBtn').addEventListener('click',
+  ()=>document.getElementById('addInfo').classList.toggle('show'));
+
+/* ---------------- boot ---------------- */
+initBackground();
+initGlobe();
+fetch('photos.json',{cache:'no-store'})
+  .then(r=>{ if(!r.ok) throw 0; return r.json(); })
+  .then(d=>{ const locs=normalizeData(d); if(!locs.length) throw 0; start(locs,false); })
+  .catch(()=>start(normalizeData(SAMPLE_DATA),true));
+
+function start(locations,isSample){
+  DATA=locations;
+  addDots(locations);
+  buildCountryList(locations);
+  document.getElementById('loadNote').hidden=!isSample;
+}
+</script>
+</body>
+</html>
