@@ -205,14 +205,22 @@ function countryColor(name){
 /* ================= animated flag tapestry background =================
    Plain WebGL: a tiled canvas of world flags, rippled + slowly scrolled
    by a fragment shader so the visible flags keep changing. */
-const FLAG_CODES = ['us','mx','ca','fr','it','jp','br','gb','de','es','au','cn','in','kr','se','no',
-  'gr','pt','ie','nl','ch','at','be','dk','fi','pl','cz','hu','tr','eg','za','ke','ma','ng','ar','cl',
-  'pe','co','cr','pa','cu','jm','do','gt','nz','ph','th','vn','id','my','sg','il','sa','ae','qa','is',
-  'hr','ro','bg','ua','ee','lv','lt','sk','si','lu','mt','cy','mc','tw','hk','np','lk','bd','pk','kz',
-  'mn','kh','la','mm','bo','ec','uy','py','ve','hn','ni','sv','bz','bs','bb','tt','fj','ws','to','pg'];
+const FLAG_CODES = ['ad','ae','af','ag','ai','al','am','ao','aq','ar','as','at','au','aw','ax','az',
+  'ba','bb','bd','be','bf','bg','bh','bi','bj','bl','bm','bn','bo','bq','br','bs','bt','bw','by','bz',
+  'ca','cc','cd','cf','cg','ch','ci','ck','cl','cm','cn','co','cr','cu','cv','cw','cx','cy','cz',
+  'de','dj','dk','dm','do','dz','ec','ee','eg','er','es','et','fi','fj','fk','fm','fo','fr',
+  'ga','gb','gd','ge','gf','gg','gh','gi','gl','gm','gn','gp','gq','gr','gt','gu','gw','gy',
+  'hk','hn','hr','ht','hu','id','ie','il','im','in','io','iq','ir','is','it','je','jm','jo','jp',
+  'ke','kg','kh','ki','km','kn','kp','kr','kw','ky','kz','la','lb','lc','li','lk','lr','ls','lt','lu','lv','ly',
+  'ma','mc','md','me','mf','mg','mh','mk','ml','mm','mn','mo','mp','mq','mr','ms','mt','mu','mv','mw','mx','my','mz',
+  'na','nc','ne','nf','ng','ni','nl','no','np','nr','nu','nz','om',
+  'pa','pe','pf','pg','ph','pk','pl','pm','pn','pr','ps','pt','pw','py','qa','re','ro','rs','ru','rw',
+  'sa','sb','sc','sd','se','sg','sh','si','sk','sl','sm','sn','so','sr','ss','st','sv','sx','sy','sz',
+  'tc','td','tg','th','tj','tk','tl','tm','tn','to','tr','tt','tv','tw','tz',
+  'ua','ug','us','uy','uz','va','vc','ve','vg','vi','vn','vu','wf','ws','ye','yt','za','zm','zw'];
 
 function buildFlagTile(cb){
-  const FW=90, FH=60, GAP=10, COLS=10, ROWS=10;
+  const FW=90, FH=60, GAP=10, COLS=16, ROWS=16;   // 256 cells → every country appears
   const c=document.createElement('canvas');
   c.width=COLS*(FW+GAP); c.height=ROWS*(FH+GAP);
   const ctx=c.getContext('2d');
@@ -247,7 +255,7 @@ function initBackground(){
       'precision mediump float;varying vec2 vUv;uniform sampler2D uTex;'+
       'uniform float uTime;uniform float uAspect;'+
       'void main(){'+
-      '  vec2 uv=vUv; uv.x*=uAspect; uv*=1.35;'+
+      '  vec2 uv=vUv; uv.x*=uAspect; uv*=0.85;'+   // keep flags readable with the larger weave
       '  uv+=vec2(uTime*0.012,-uTime*0.006);'+                 // slow scroll
       '  float w1=sin(uv.x*9.0+uv.y*7.0+uTime*1.1);'+
       '  float w2=sin(uv.y*11.0-uTime*0.8);'+
@@ -271,8 +279,8 @@ function initBackground(){
     const tex=gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D,tex);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,tile);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
     const uTime=gl.getUniformLocation(prog,'uTime');
     const uAspect=gl.getUniformLocation(prog,'uAspect');
@@ -306,7 +314,12 @@ function initGlobe(){
     animation:false, sceneModePicker:false, navigationHelpButton:false,
     fullscreenButton:false, infoBox:false, selectionIndicator:false,
     requestRenderMode:false,
+    contextOptions:{webgl:{alpha:true}},          // let the flags show behind the globe
   });
+  viewer.scene.skyBox.show=false;                 // no opaque star box
+  viewer.scene.sun.show=false;
+  viewer.scene.moon.show=false;
+  viewer.scene.backgroundColor=Cesium.Color.TRANSPARENT;
   viewer.scene.globe.enableLighting=false;
   viewer.scene.screenSpaceCameraController.minimumZoomDistance=60;      // ~street level
   viewer.scene.screenSpaceCameraController.maximumZoomDistance=30000000;
