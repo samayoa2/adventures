@@ -6,8 +6,16 @@
       "lat": 35.4676,
       "lon": -97.5164,
       "photos": [
-        { "src": "https://picsum.photos/seed/okc1/900/600", "date": "2025-04-12", "caption": "Scissortail Park" },
-        { "src": "https://picsum.photos/seed/okc2/900/600", "date": "2025-04-13", "caption": "Bricktown canal walk" }
+        {
+          "src": "https://picsum.photos/seed/okc1/900/600",
+          "date": "2025-04-12",
+          "caption": "Scissortail Park"
+        },
+        {
+          "src": "https://picsum.photos/seed/okc2/900/600",
+          "date": "2025-04-13",
+          "caption": "Bricktown canal walk"
+        }
       ]
     },
     {
@@ -16,8 +24,16 @@
       "lat": 41.8781,
       "lon": -87.6298,
       "photos": [
-        { "src": "https://picsum.photos/seed/chi1/900/600", "date": "2024-09-02", "caption": "The Bean" },
-        { "src": "https://picsum.photos/seed/chi2/900/600", "date": "2024-09-03", "caption": "Navy Pier sunset" }
+        {
+          "src": "https://picsum.photos/seed/chi1/900/600",
+          "date": "2024-09-02",
+          "caption": "The Bean"
+        },
+        {
+          "src": "https://picsum.photos/seed/chi2/900/600",
+          "date": "2024-09-03",
+          "caption": "Navy Pier sunset"
+        }
       ]
     },
     {
@@ -26,7 +42,11 @@
       "lat": 21.1619,
       "lon": -86.8515,
       "photos": [
-        { "src": "https://picsum.photos/seed/can1/900/600", "date": "2024-02-14", "caption": "Valentine's on the beach" }
+        {
+          "src": "https://picsum.photos/seed/can1/900/600",
+          "date": "2024-02-14",
+          "caption": "Valentine's on the beach"
+        }
       ]
     },
     {
@@ -35,7 +55,24 @@
       "lat": 48.8566,
       "lon": 2.3522,
       "photos": [
-        { "src": "https://picsum.photos/seed/par1/900/600", "date": "2023-10-05", "caption": "Eiffel Tower at dusk" }
+        {
+          "src": "https://picsum.photos/seed/par1/900/600",
+          "date": "2023-10-05",
+          "caption": "Eiffel Tower at dusk"
+        }
+      ]
+    },
+    {
+      "country": "United States",
+      "name": "Denver, CO",
+      "lat": 39.7392364,
+      "lon": -104.984862,
+      "photos": [
+        {
+          "src": "photos/1784327042559-20260717-161737.jpg",
+          "date": "2026-07-17",
+          "caption": ""
+        }
       ]
     }
   ]
