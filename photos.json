@@ -120,6 +120,19 @@
           "caption": ""
         }
       ]
+    },
+    {
+      "country": "United States",
+      "name": "Denver, Colorado",
+      "lat": 39.8630094,
+      "lon": -104.6715064,
+      "photos": [
+        {
+          "src": "photos/1786635472096-20260813-093650.jpg",
+          "date": "2026-08-13",
+          "caption": ""
+        }
+      ]
     }
   ]
 }
