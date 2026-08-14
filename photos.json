@@ -133,6 +133,19 @@
           "caption": ""
         }
       ]
+    },
+    {
+      "country": "Sweden",
+      "name": "Marstrand",
+      "lat": 57.8862328,
+      "lon": 11.5905826,
+      "photos": [
+        {
+          "src": "photos/1786717106051-20260814-160624.jpg",
+          "date": "2026-08-14",
+          "caption": ""
+        }
+      ]
     }
   ]
 }
