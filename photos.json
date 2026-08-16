@@ -156,6 +156,19 @@
           "caption": ""
         }
       ]
+    },
+    {
+      "country": "Sweden",
+      "name": "Varberg",
+      "lat": 57.1057412,
+      "lon": 12.2502949,
+      "photos": [
+        {
+          "src": "photos/1786895787894-20260816-170216.jpg",
+          "date": "2026-08-16",
+          "caption": ""
+        }
+      ]
     }
   ]
 }
