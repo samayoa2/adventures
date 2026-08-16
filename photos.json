@@ -224,6 +224,19 @@
           "caption": ""
         }
       ]
+    },
+    {
+      "country": "Netherlands",
+      "name": "Amsterdam, North Holland",
+      "lat": 52.3730796,
+      "lon": 4.8924534,
+      "photos": [
+        {
+          "src": "photos/1786896519095-20260814-105152.jpg",
+          "date": "2026-08-14",
+          "caption": ""
+        }
+      ]
     }
   ]
 }
